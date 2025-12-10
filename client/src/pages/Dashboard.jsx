@@ -39,6 +39,18 @@ function Dashboard() {
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const currentBudget = budgets[0]?.totalLimit || 0;
+  const remainingBudget = currentBudget - totalExpenses;
+  const budgetUsedPercentage = currentBudget > 0 ? ((totalExpenses / currentBudget) * 100).toFixed(1) : 0;
+
+  // Calculate monthly expenses (current month)
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const monthlyExpenses = expenses.filter(exp => {
+    const expDate = new Date(exp.date);
+    return expDate.getMonth() === currentMonth && expDate.getFullYear() === currentYear;
+  });
+  const monthlyTotal = monthlyExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
   if (loading) {
     return <div style={styles.loading}>Loading dashboard...</div>;
@@ -46,20 +58,28 @@ function Dashboard() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Dashboard</h1>
+      <h1 style={styles.title}>💰 Financial Dashboard</h1>
       
       <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
+        <div style={{...styles.statCard, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
           <h3>Total Expenses</h3>
           <p style={styles.statValue}>₹{totalExpenses.toFixed(2)}</p>
+          <small style={styles.statSubtext}>{expenses.length} transactions</small>
         </div>
-        <div style={styles.statCard}>
+        <div style={{...styles.statCard, background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'}}>
+          <h3>This Month</h3>
+          <p style={styles.statValue}>₹{monthlyTotal.toFixed(2)}</p>
+          <small style={styles.statSubtext}>{monthlyExpenses.length} transactions</small>
+        </div>
+        <div style={{...styles.statCard, background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'}}>
           <h3>Monthly Budget</h3>
           <p style={styles.statValue}>₹{currentBudget.toFixed(2)}</p>
+          <small style={styles.statSubtext}>{budgetUsedPercentage}% used</small>
         </div>
-        <div style={styles.statCard}>
-          <h3>Transactions</h3>
-          <p style={styles.statValue}>{expenses.length}</p>
+        <div style={{...styles.statCard, background: remainingBudget >= 0 ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' : 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'}}>
+          <h3>Remaining</h3>
+          <p style={styles.statValue}>₹{Math.abs(remainingBudget).toFixed(2)}</p>
+          <small style={styles.statSubtext}>{remainingBudget >= 0 ? 'Within budget' : 'Over budget!'}</small>
         </div>
       </div>
 
@@ -108,6 +128,18 @@ const styles = {
     background: 'white',
     padding: '1.5rem',
     borderRadius: '10px',
+    color: 'white',
+  },
+  statValue: {
+    fontSize: '2.5rem',
+    fontWeight: 'bold',
+    margin: '0.5rem 0',
+    color: 'white',
+  },
+  statSubtext: {
+    opacity: 0.9,
+    fontSize: '0.9rem',
+  },
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
   },
   statValue: {
