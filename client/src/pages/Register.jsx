@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { register } from '../services/authService';
+import { registerUser } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 
 function Register() {
@@ -13,11 +13,16 @@ function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -27,12 +32,12 @@ function Register() {
     setLoading(true);
 
     try {
-      const data = await register({
+      const data = await registerUser({
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
-      setUser(data.user);
+      login(data);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');

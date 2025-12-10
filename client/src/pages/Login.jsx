@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../services/authService';
+import { loginUser } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 
 function Login() {
@@ -8,7 +8,7 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,8 +16,8 @@ function Login() {
     setLoading(true);
 
     try {
-      const data = await login(formData);
-      setUser(data.user);
+      const data = await loginUser(formData);
+      login(data);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
