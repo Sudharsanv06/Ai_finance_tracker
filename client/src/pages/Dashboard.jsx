@@ -128,6 +128,7 @@ const styles = {
     background: 'white',
     padding: '1.5rem',
     borderRadius: '10px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
     color: 'white',
   },
   statValue: {
@@ -139,14 +140,6 @@ const styles = {
   statSubtext: {
     opacity: 0.9,
     fontSize: '0.9rem',
-  },
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-  },
-  statValue: {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    color: '#667eea',
-    marginTop: '0.5rem',
   },
   budgetSection: {
     marginBottom: '2rem',
