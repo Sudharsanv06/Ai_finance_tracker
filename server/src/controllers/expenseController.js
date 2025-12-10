@@ -40,6 +40,15 @@ export const createExpense = async (req, res) => {
   try {
     const { description, amount, category, paymentMethod, date, aiCategorized, aiNotes } = req.body;
 
+    // Validation
+    if (!description || !amount) {
+      return res.status(400).json({ message: 'Description and amount are required' });
+    }
+
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ message: 'Amount must be a positive number' });
+    }
+
     const expense = await Expense.create({
       user: req.user._id,
       description,
