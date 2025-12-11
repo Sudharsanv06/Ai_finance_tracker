@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getBudgets,
   getBudgetById,
+  getCurrentBudget,
   createBudget,
   updateBudget,
   deleteBudget,
@@ -11,6 +12,7 @@ import { protect } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 router.route('/').get(protect, getBudgets).post(protect, createBudget);
+router.route('/current').get(protect, getCurrentBudget);
 router
   .route('/:id')
   .get(protect, getBudgetById)

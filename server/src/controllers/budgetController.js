@@ -89,6 +89,31 @@ export const updateBudget = async (req, res) => {
   }
 };
 
+// @desc    Get current month budget
+// @route   GET /api/budgets/current
+// @access  Private
+export const getCurrentBudget = async (req, res) => {
+  try {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+    const currentYear = now.getFullYear();
+
+    const budget = await Budget.findOne({
+      user: req.user._id,
+      month: currentMonth,
+      year: currentYear,
+    });
+
+    if (!budget) {
+      return res.status(404).json({ message: 'No budget set for current month' });
+    }
+
+    res.json(budget);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Delete budget
 // @route   DELETE /api/budgets/:id
 // @access  Private

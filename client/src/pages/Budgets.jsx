@@ -1,106 +1,142 @@
 import React, { useState, useEffect } from 'react';
-import { getBudgets, createBudget, updateBudget } from '../services/budgetService';
+import { getBudgets, createBudget, updateBudget, deleteBudget } from '../services/budgetService';
+import { getExpenses } from '../services/expenseService';
+import BudgetForm from '../components/BudgetForm';
+import BudgetCard from '../components/BudgetCard';
 
 function Budgets() {
   const [budgets, setBudgets] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [editingBudget, setEditingBudget] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    totalLimit: '',
-  });
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    fetchBudgets();
+    fetchData();
   }, []);
 
-  const fetchBudgets = async () => {
+  const fetchData = async () => {
     try {
-      const data = await getBudgets();
-      setBudgets(data);
+      const [budgetsData, expensesData] = await Promise.all([
+        getBudgets(),
+        getExpenses(),
+      ]);
+      setBudgets(budgetsData);
+      setExpenses(expensesData);
     } catch (error) {
-      console.error('Failed to fetch budgets:', error);
+      console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleBudgetSaved = async (budgetData) => {
     try {
-      await createBudget({
-        ...formData,
-        totalLimit: parseFloat(formData.totalLimit),
-      });
-      setFormData({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-        totalLimit: '',
-      });
-      fetchBudgets();
-      alert('Budget created successfully!');
+      if (editingBudget) {
+        await updateBudget(editingBudget._id, budgetData);
+        setEditingBudget(null);
+      } else {
+        await createBudget(budgetData);
+      }
+      await fetchData();
+      setShowForm(false);
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to create budget');
+      throw error;
     }
   };
 
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const handleEdit = (budget) => {
+    setEditingBudget(budget);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this budget?')) {
+      try {
+        await deleteBudget(id);
+        await fetchData();
+      } catch (error) {
+        console.error('Failed to delete budget:', error);
+        alert('Failed to delete budget');
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingBudget(null);
+    setShowForm(false);
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.loading}>Loading budgets...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Manage Budgets</h1>
-      
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <h3>Create New Budget</h3>
-        <div style={styles.formGrid}>
-          <select
-            value={formData.month}
-            onChange={(e) => setFormData({ ...formData, month: parseInt(e.target.value) })}
-            style={styles.input}
-          >
-            {monthNames.map((month, index) => (
-              <option key={index} value={index + 1}>{month}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            placeholder="Year"
-            value={formData.year}
-            onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
-            required
-            style={styles.input}
-          />
-          <input
-            type="number"
-            placeholder="Total Budget Limit"
-            value={formData.totalLimit}
-            onChange={(e) => setFormData({ ...formData, totalLimit: e.target.value })}
-            required
-            step="0.01"
-            style={styles.input}
-          />
-          <button type="submit" style={styles.button}>Create Budget</button>
+      <div style={styles.header}>
+        <h1 style={styles.pageTitle}>Budget Management</h1>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} style={styles.addButton}>
+            + New Budget
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <BudgetForm
+          onBudgetSaved={handleBudgetSaved}
+          editingBudget={editingBudget}
+          onCancel={handleCancel}
+        />
+      )}
+
+      <div style={styles.stats}>
+        <div style={styles.statCard}>
+          <h3 style={styles.statTitle}>Total Budgets</h3>
+          <p style={styles.statValue}>{budgets.length}</p>
         </div>
-      </form>
+        <div style={styles.statCard}>
+          <h3 style={styles.statTitle}>Current Month</h3>
+          <p style={styles.statValue}>
+            {budgets.find(b => {
+              const now = new Date();
+              return b.month === now.getMonth() + 1 && b.year === now.getFullYear();
+            }) ? 'Set' : 'Not Set'}
+          </p>
+        </div>
+        <div style={styles.statCard}>
+          <h3 style={styles.statTitle}>Total Expenses</h3>
+          <p style={styles.statValue}>{expenses.length}</p>
+        </div>
+      </div>
 
       <div style={styles.budgetList}>
-        <h3>Existing Budgets</h3>
-        {loading ? (
-          <p style={styles.loading}>Loading budgets...</p>
-        ) : budgets.length === 0 ? (
-          <p style={styles.empty}>No budgets created yet.</p>
-        ) : (
-          <div style={styles.grid}>
-            {budgets.map((budget) => (
-              <div key={budget._id} style={styles.budgetCard}>
-                <h4>{monthNames[budget.month - 1]} {budget.year}</h4>
-                <p style={styles.amount}>₹{budget.totalLimit.toFixed(2)}</p>
-                <p style={styles.date}>
-                  Created: {new Date(budget.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
+        <h2 style={styles.sectionTitle}>Your Budgets</h2>
+        {budgets.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyText}>No budgets set yet.</p>
+            <p style={styles.emptySubtext}>
+              Create your first budget to start tracking your spending!
+            </p>
+            <button onClick={() => setShowForm(true)} style={styles.emptyButton}>
+              Create Budget
+            </button>
           </div>
+        ) : (
+          budgets.map((budget) => (
+            <BudgetCard
+              key={budget._id}
+              budget={budget}
+              expenses={expenses}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))
         )}
       </div>
     </div>
@@ -113,76 +149,96 @@ const styles = {
     margin: '0 auto',
     padding: '2rem',
   },
-  title: {
-    color: 'white',
-    marginBottom: '2rem',
-    fontSize: '2.5rem',
-  },
-  form: {
-    background: 'white',
-    padding: '2rem',
-    borderRadius: '10px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '2rem',
   },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
-    marginTop: '1rem',
+  pageTitle: {
+    fontSize: '2rem',
+    fontWeight: '700',
+    color: '#333',
+    margin: 0,
   },
-  input: {
-    padding: '0.75rem',
-    border: '1px solid #ddd',
-    borderRadius: '5px',
-    fontSize: '1rem',
-  },
-  button: {
-    background: '#667eea',
+  addButton: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
     border: 'none',
-    padding: '0.75rem',
-    borderRadius: '5px',
+    padding: '0.75rem 1.5rem',
+    borderRadius: '8px',
     fontSize: '1rem',
+    fontWeight: '600',
     cursor: 'pointer',
-    fontWeight: '500',
+    transition: 'transform 0.2s',
+  },
+  stats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '1.5rem',
+    marginBottom: '2rem',
+  },
+  statCard: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    padding: '1.5rem',
+    borderRadius: '12px',
+    boxShadow: '0 4px 15px rgba(102,126,234,0.3)',
+    textAlign: 'center',
+  },
+  statTitle: {
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    margin: '0 0 0.5rem 0',
+    textTransform: 'uppercase',
+    opacity: 0.9,
+  },
+  statValue: {
+    fontSize: '2rem',
+    fontWeight: '700',
+    margin: 0,
+  },
+  sectionTitle: {
+    fontSize: '1.5rem',
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: '1.5rem',
   },
   budgetList: {
-    background: 'white',
-    padding: '2rem',
-    borderRadius: '10px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '1.5rem',
-    marginTop: '1rem',
-  },
-  budgetCard: {
-    background: '#f8f9fa',
-    padding: '1.5rem',
-    borderRadius: '8px',
-    border: '2px solid #e9ecef',
-  },
-  amount: {
-    fontSize: '1.5rem',
-    fontWeight: 'bold',
-    color: '#667eea',
-    margin: '0.5rem 0',
-  },
-  date: {
-    color: '#666',
-    fontSize: '0.875rem',
+    marginTop: '2rem',
   },
   loading: {
     textAlign: 'center',
+    padding: '3rem',
+    fontSize: '1.2rem',
     color: '#666',
   },
-  empty: {
+  emptyState: {
     textAlign: 'center',
+    padding: '4rem 2rem',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+  },
+  emptyText: {
+    fontSize: '1.2rem',
     color: '#666',
-    padding: '2rem',
+    margin: '0 0 0.5rem 0',
+  },
+  emptySubtext: {
+    fontSize: '1rem',
+    color: '#999',
+    margin: '0 0 2rem 0',
+  },
+  emptyButton: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    padding: '1rem 2rem',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
 };
 
