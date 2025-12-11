@@ -30,6 +30,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = (data) => {
     console.log('AuthContext: Logging in user:', data);
+    setLoading(false);
     setToken(data.token);
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
@@ -52,7 +53,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
