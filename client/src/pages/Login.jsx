@@ -22,11 +22,16 @@ function Login() {
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', { email: formData.email });
       const data = await loginUser(formData);
+      console.log('Login successful:', data);
       login(data);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      console.error('Login error:', err);
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

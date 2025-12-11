@@ -38,15 +38,20 @@ function Register() {
     setLoading(true);
 
     try {
+      console.log('Attempting registration with:', { name: formData.name, email: formData.email });
       const data = await registerUser({
         name: formData.name,
         email: formData.email,
         password: formData.password,
       });
+      console.log('Registration successful:', data);
       login(data);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      console.error('Registration error:', err);
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

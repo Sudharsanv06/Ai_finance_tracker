@@ -29,8 +29,10 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = (data) => {
+    console.log('AuthContext: Logging in user:', data);
     setToken(data.token);
     localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
   };
 
