@@ -30,11 +30,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = (data) => {
     console.log('AuthContext: Logging in user:', data);
-    setLoading(false);
+    // Set user FIRST before token to prevent race condition
+    setUser(data.user);
     setToken(data.token);
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
-    setUser(data.user);
+    setLoading(false);
   };
 
   const logout = () => {

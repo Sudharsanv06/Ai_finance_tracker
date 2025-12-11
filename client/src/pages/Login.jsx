@@ -13,6 +13,7 @@ function Login() {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
+      console.log('User detected, navigating to dashboard');
       navigate('/');
     }
   }, [user, navigate]);
@@ -27,7 +28,7 @@ function Login() {
       const data = await loginUser(formData);
       console.log('Login successful:', data);
       login(data);
-      navigate('/');
+      // Navigation will happen via useEffect when user state updates
     } catch (err) {
       console.error('Login error:', err);
       console.error('Error response:', err.response);
