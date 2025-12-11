@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { createExpense, updateExpense, categorizeExpense } from '../services/expenseService';
+import { createExpense, updateExpense } from '../services/expenseService';
+import { categorizeExpense } from '../services/aiService';
 
 function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
   const [formData, setFormData] = useState({
@@ -9,9 +10,11 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
     paymentMethod: 'Other',
     date: new Date().toISOString().split('T')[0],
   });
-  const [useAI, setUseAI] = useState(false);
+  const [aiCategorized, setAiCategorized] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [categorizingAI, setCategorizingAI] = useState(false);
   const [error, setError] = useState('');
+  const [aiError, setAiError] = useState('');
 
   const categories = ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Education', 'Others'];
   const paymentMethods = ['Cash', 'UPI', 'Card', 'NetBanking', 'Other'];
@@ -25,8 +28,38 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
         paymentMethod: editingExpense.paymentMethod,
         date: editingExpense.date ? new Date(editingExpense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       });
+      setAiCategorized(editingExpense.aiCategorized || false);
     }
   }, [editingExpense]);
+
+  // Auto Categorize button handler
+  const handleAutoCategorize = async () => {
+    if (!formData.description || !formData.amount) {
+      setAiError('Please enter description and amount first');
+      return;
+    }
+
+    setCategorizingAI(true);
+    setAiError('');
+
+    try {
+      const result = await categorizeExpense({
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+      });
+
+      // Update category with AI suggestion
+      setFormData({ ...formData, category: result.category });
+      setAiCategorized(true);
+      setAiError('');
+    } catch (error) {
+      console.error('AI categorization failed:', error);
+      setAiError(error.response?.data?.message || 'AI categorization failed. Please select manually.');
+      setAiCategorized(false);
+    } finally {
+      setCategorizingAI(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,17 +75,11 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
         return;
       }
 
-      let expenseData = { ...formData, amount };
-
-      if (useAI && !editingExpense) {
-        const aiResult = await categorizeExpense({
-          description: formData.description,
-          amount: formData.amount,
-        });
-        expenseData.category = aiResult.category;
-        expenseData.aiCategorized = true;
-        expenseData.aiNotes = aiResult.notes;
-      }
+      const expenseData = { 
+        ...formData, 
+        amount,
+        aiCategorized: aiCategorized,
+      };
 
       if (editingExpense) {
         await updateExpense(editingExpense._id, expenseData);
@@ -60,6 +87,7 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
         await createExpense(expenseData);
       }
 
+      // Reset form
       setFormData({
         description: '',
         amount: '',
@@ -67,6 +95,8 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
         paymentMethod: 'Other',
         date: new Date().toISOString().split('T')[0],
       });
+      setAiCategorized(false);
+      setAiError('');
       if (onExpenseAdded) onExpenseAdded();
       if (onCancelEdit) onCancelEdit();
     } catch (error) {
@@ -92,11 +122,16 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
     <form onSubmit={handleSubmit} style={styles.form}>
       <h3>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</h3>
       {error && <div style={styles.error}>{error}</div>}
+      {aiError && <div style={styles.aiError}>{aiError}</div>}
+      
       <input
         type="text"
-        placeholder="Description"
+        placeholder="Description (e.g., Pizza delivery, Uber ride, Netflix subscription)"
         value={formData.description}
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+        onChange={(e) => {
+          setFormData({ ...formData, description: e.target.value });
+          setAiCategorized(false); // Reset AI flag when user changes description
+        }}
         required
         style={styles.input}
       />
@@ -104,22 +139,50 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
         type="number"
         placeholder="Amount"
         value={formData.amount}
-        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+        onChange={(e) => {
+          setFormData({ ...formData, amount: e.target.value });
+          setAiCategorized(false); // Reset AI flag when user changes amount
+        }}
         required
         step="0.01"
         min="0.01"
         style={styles.input}
       />
-      <select
-        value={formData.category}
-        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-        style={styles.input}
-        disabled={useAI && !editingExpense}
-      >
-        {categories.map((cat) => (
-          <option key={cat} value={cat}>{cat}</option>
-        ))}
-      </select>
+      
+      <div style={styles.categoryRow}>
+        <select
+          value={formData.category}
+          onChange={(e) => {
+            setFormData({ ...formData, category: e.target.value });
+            setAiCategorized(false); // Reset if manually changed
+          }}
+          style={{...styles.input, flex: 1}}
+        >
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        
+        <button
+          type="button"
+          onClick={handleAutoCategorize}
+          disabled={categorizingAI || !formData.description || !formData.amount}
+          style={{
+            ...styles.aiButton,
+            opacity: (!formData.description || !formData.amount) ? 0.5 : 1,
+            cursor: (!formData.description || !formData.amount) ? 'not-allowed' : 'pointer',
+          }}
+          title="Auto categorize with AI"
+        >
+          {categorizingAI ? '⏳ Categorizing...' : '🤖 Auto Categorize'}
+        </button>
+      </div>
+      
+      {aiCategorized && (
+        <div style={styles.aiSuccess}>
+          ✅ AI suggested: <strong>{formData.category}</strong> (You can still change it manually)
+        </div>
+      )}
       <select
         value={formData.paymentMethod}
         onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
@@ -136,16 +199,7 @@ function ExpenseForm({ onExpenseAdded, editingExpense, onCancelEdit }) {
         required
         style={styles.input}
       />
-      {!editingExpense && (
-        <label style={styles.checkbox}>
-          <input
-            type="checkbox"
-            checked={useAI}
-            onChange={(e) => setUseAI(e.target.checked)}
-          />
-          Use AI to categorize
-        </label>
-      )}
+      
       <div style={styles.buttonGroup}>
         <button type="submit" disabled={loading} style={styles.button}>
           {loading ? 'Saving...' : (editingExpense ? 'Update Expense' : 'Add Expense')}
@@ -183,10 +237,37 @@ const styles = {
     borderRadius: '5px',
     textAlign: 'center',
   },
-  checkbox: {
+  aiError: {
+    background: '#fff3cd',
+    color: '#856404',
+    padding: '0.75rem',
+    borderRadius: '5px',
+    textAlign: 'center',
+    fontSize: '0.9rem',
+  },
+  aiSuccess: {
+    background: '#d4edda',
+    color: '#155724',
+    padding: '0.75rem',
+    borderRadius: '5px',
+    textAlign: 'center',
+    fontSize: '0.9rem',
+  },
+  categoryRow: {
     display: 'flex',
-    alignItems: 'center',
     gap: '0.5rem',
+    alignItems: 'center',
+  },
+  aiButton: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    border: 'none',
+    padding: '0.75rem 1rem',
+    borderRadius: '5px',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.3s ease',
   },
   buttonGroup: {
     display: 'flex',
