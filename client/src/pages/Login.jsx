@@ -8,13 +8,14 @@ function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
 
-  // Clear any stale tokens when login page loads
+  // Redirect if already logged in
   useEffect(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  }, []);
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
