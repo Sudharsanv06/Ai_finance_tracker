@@ -19,7 +19,7 @@ function Register() {
   useEffect(() => {
     if (user) {
       console.log('User detected, navigating to dashboard');
-      navigate('/');
+      navigate('/', { replace: true });
     }
   }, [user, navigate]);
 
