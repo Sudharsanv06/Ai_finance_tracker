@@ -12,8 +12,8 @@ import Insights from './pages/Insights';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Navbar />
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -51,8 +51,8 @@ function App() {
             }
           />
         </Routes>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

@@ -28,13 +28,13 @@ function Login() {
       const data = await loginUser(formData);
       console.log('Login successful:', data);
       login(data);
-      // Navigation will happen via useEffect when user state updates
+      console.log('Navigating to dashboard...');
+      navigate('/', { replace: true });
     } catch (err) {
       console.error('Login error:', err);
       console.error('Error response:', err.response);
       const errorMessage = err.response?.data?.message || err.message || 'Login failed. Please try again.';
       setError(errorMessage);
-    } finally {
       setLoading(false);
     }
   };

@@ -48,13 +48,13 @@ function Register() {
       });
       console.log('Registration successful:', data);
       login(data);
-      // Navigation will happen via useEffect when user state updates
+      console.log('Navigating to dashboard...');
+      navigate('/', { replace: true });
     } catch (err) {
       console.error('Registration error:', err);
       console.error('Error response:', err.response);
       const errorMessage = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
       setError(errorMessage);
-    } finally {
       setLoading(false);
     }
   };
