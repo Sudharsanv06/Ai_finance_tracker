@@ -34,8 +34,43 @@ class AIClient {
       }
     } catch (error) {
       console.error('AI insight generation error:', error);
-      return 'Unable to generate insights at this time.';
+      // Fallback to rule-based insights
+      return this.generateRuleBasedInsight(summaryData);
     }
+  }
+
+  generateRuleBasedInsight(summaryData) {
+    const { total, byCategory, transactionCount } = summaryData;
+    
+    if (transactionCount === 0) {
+      return 'No expenses recorded this month. Start tracking your spending to get personalized insights!';
+    }
+
+    // Find top category
+    const categories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+    const topCategory = categories[0];
+    const topPercentage = ((topCategory[1] / total) * 100).toFixed(1);
+
+    // Generate insight
+    let insight = `This month, you spent ₹${total.toFixed(2)} across ${transactionCount} transactions. `;
+    insight += `Your biggest expense was ${topCategory[0]} (₹${topCategory[1].toFixed(2)}, ${topPercentage}% of total spending). `;
+    
+    if (categories.length > 1) {
+      const secondCategory = categories[1];
+      const secondPercentage = ((secondCategory[1] / total) * 100).toFixed(1);
+      insight += `Followed by ${secondCategory[0]} at ${secondPercentage}%. `;
+    }
+
+    // Add suggestion
+    if (topPercentage > 40) {
+      insight += `💡 Tip: Your ${topCategory[0]} spending is quite high. Consider setting a budget limit to track this category better.`;
+    } else if (transactionCount > 20) {
+      insight += `💡 Tip: You made ${transactionCount} transactions this month. Try consolidating purchases to save on fees and reduce impulse spending.`;
+    } else {
+      insight += `💡 Tip: Great job tracking your expenses! Keep monitoring your spending patterns to identify savings opportunities.`;
+    }
+
+    return insight;
   }
 
   async answerQuestion(question, transactionsJson) {
