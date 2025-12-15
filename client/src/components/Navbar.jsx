@@ -24,8 +24,8 @@ function Navbar() {
               <Link to="/expenses" style={styles.link}>Expenses</Link>
               <Link to="/budgets" style={styles.link}>Budgets</Link>
               <Link to="/insights" style={styles.link}>Insights</Link>
+              <Link to="/profile" style={styles.link}>Profile</Link>
               <span style={styles.user}>👤 {user.name}</span>
-              <button onClick={handleLogout} style={styles.button}>Logout</button>
             </>
           ) : (
             <>

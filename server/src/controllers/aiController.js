@@ -1,5 +1,6 @@
 import Expense from '../models/Expense.js';
 import Insight from '../models/Insight.js';
+import Budget from '../models/Budget.js';
 import aiClient from '../utils/aiClient.js';
 
 // @desc    Categorize expense using AI
@@ -121,3 +122,67 @@ export const askQuestion = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Predict budget overspend
+// @route   POST /api/ai/predict
+// @access  Private
+export const predictBudget = async (req, res) => {
+  try {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const currentDay = now.getDate();
+    const daysRemaining = daysInMonth - currentDay;
+
+    // Get current month expenses
+    const expenses = await Expense.find({
+      user: req.user._id,
+      date: { $gte: firstDayOfMonth, $lte: now }
+    });
+
+    const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const dailyAverage = currentDay > 0 ? totalSpent / currentDay : 0;
+    const predictedTotal = totalSpent + (dailyAverage * daysRemaining);
+
+    // Get all budgets
+    const budgets = await Budget.find({ user: req.user._id });
+    const totalBudget = budgets.reduce((sum, b) => sum + b.limit, 0);
+
+    // Calculate status
+    let status = 'safe';
+    let difference = 0;
+    let message = '';
+
+    if (totalBudget === 0) {
+      message = '⚠️ Set a budget to track your spending predictions!';
+      status = 'warning';
+    } else if (predictedTotal > totalBudget) {
+      difference = predictedTotal - totalBudget;
+      status = 'overbudget';
+      message = `⚠️ You are likely to exceed your budget by ₹${difference.toFixed(0)} this month!`;
+    } else if (predictedTotal > totalBudget * 0.8) {
+      difference = totalBudget - predictedTotal;
+      status = 'warning';
+      message = `⚠️ You're on track to spend ₹${predictedTotal.toFixed(0)} out of ₹${totalBudget.toFixed(0)}. Watch your spending!`;
+    } else {
+      difference = totalBudget - predictedTotal;
+      status = 'safe';
+      message = `✅ You're doing great! Predicted spending: ₹${predictedTotal.toFixed(0)} out of ₹${totalBudget.toFixed(0)}`;
+    }
+
+    res.json({
+      totalSpent: totalSpent.toFixed(2),
+      predictedTotal: predictedTotal.toFixed(2),
+      totalBudget: totalBudget.toFixed(2),
+      dailyAverage: dailyAverage.toFixed(2),
+      daysRemaining,
+      status,
+      difference: difference.toFixed(2),
+      message
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

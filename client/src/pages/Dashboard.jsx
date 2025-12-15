@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getExpenses } from '../services/expenseService';
 import { getBudgets } from '../services/budgetService';
+import { predictBudget } from '../services/userService';
 import BudgetCard from '../components/BudgetCard';
 import ExpensePieChart from '../components/Charts/ExpensePieChart';
 import MonthlyBarChart from '../components/Charts/MonthlyBarChart';
@@ -8,6 +9,7 @@ import MonthlyBarChart from '../components/Charts/MonthlyBarChart';
 function Dashboard() {
   const [expenses, setExpenses] = useState([]);
   const [budgets, setBudgets] = useState([]);
+  const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,12 +18,14 @@ function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [expensesData, budgetsData] = await Promise.all([
+      const [expensesData, budgetsData, predictionData] = await Promise.all([
         getExpenses(),
         getBudgets(),
+        predictBudget(),
       ]);
       setExpenses(expensesData);
       setBudgets(budgetsData);
+      setPrediction(predictionData);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -79,6 +83,30 @@ function Dashboard() {
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>💰 Financial Dashboard</h1>
+      
+      {/* AI Budget Prediction Alert */}
+      {prediction && (
+        <div style={{
+          ...styles.predictionCard,
+          background: 
+            prediction.status === 'safe' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' :
+            prediction.status === 'warning' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' :
+            'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+        }}>
+          <div style={styles.predictionContent}>
+            <div style={styles.predictionIcon}>
+              {prediction.status === 'safe' ? '✅' : '⚠️'}
+            </div>
+            <div>
+              <div style={styles.predictionTitle}>Budget Prediction</div>
+              <div style={styles.predictionMessage}>{prediction.message}</div>
+              <div style={styles.predictionDetails}>
+                Spent: ₹{prediction.totalSpent} | Predicted: ₹{prediction.predictedTotal} | Budget: ₹{prediction.totalBudget}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Budget Warning */}
       {budgetLimit > 0 && budgetUsedPercentage > 90 && (
@@ -155,6 +183,34 @@ const styles = {
     borderRadius: '8px',
     marginBottom: '2rem',
     fontSize: '1rem',
+  },
+  predictionCard: {
+    padding: '1.5rem',
+    borderRadius: '12px',
+    marginBottom: '2rem',
+    color: 'white',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+  },
+  predictionContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+  },
+  predictionIcon: {
+    fontSize: '3rem',
+  },
+  predictionTitle: {
+    fontSize: '1.25rem',
+    fontWeight: 'bold',
+    marginBottom: '0.5rem',
+  },
+  predictionMessage: {
+    fontSize: '1.1rem',
+    marginBottom: '0.5rem',
+  },
+  predictionDetails: {
+    fontSize: '0.9rem',
+    opacity: 0.9,
   },
   statsGrid: {
     display: 'grid',
