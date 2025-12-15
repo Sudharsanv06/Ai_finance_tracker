@@ -106,6 +106,9 @@ export const askQuestion = async (req, res) => {
       .sort({ date: -1 })
       .limit(100);
 
+    // Get budgets
+    const budgets = await Budget.find({ user: req.user._id });
+
     const transactionsJson = JSON.stringify(
       expenses.map((e) => ({
         date: e.date,
@@ -115,7 +118,16 @@ export const askQuestion = async (req, res) => {
       }))
     );
 
-    const answer = await aiClient.answerQuestion(question, transactionsJson);
+    const budgetsJson = JSON.stringify(
+      budgets.map((b) => ({
+        totalLimit: b.totalLimit,
+        categoryLimits: b.categoryLimits,
+        month: b.month,
+        year: b.year,
+      }))
+    );
+
+    const answer = await aiClient.answerQuestion(question, transactionsJson, budgetsJson);
 
     res.json({ question, answer });
   } catch (error) {

@@ -26,6 +26,7 @@ function Navbar() {
               <Link to="/insights" style={styles.link}>Insights</Link>
               <Link to="/profile" style={styles.link}>Profile</Link>
               <span style={styles.user}>👤 {user.name}</span>
+              <button onClick={handleLogout} style={styles.button}>Logout</button>
             </>
           ) : (
             <>

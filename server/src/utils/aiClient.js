@@ -111,10 +111,10 @@ class AIClient {
     return insight;
   }
 
-  async answerQuestion(question, transactionsJson) {
+  async answerQuestion(question, transactionsJson, budgetsJson = '[]') {
     this._ensureInitialized();
-    const systemMessage = "You are an AI that answers questions about a user's spending patterns from their transaction history. Use only the given data.";
-    const userMessage = `Transactions (JSON):\n${transactionsJson}\n\nUser question: "${question}"\n\nAnswer in 3-6 lines, referring to specific amounts and categories if helpful.`;
+    const systemMessage = "You are an AI that answers questions about a user's spending patterns and budgets from their transaction history. Use only the given data.";
+    const userMessage = `Transactions (JSON):\n${transactionsJson}\n\nBudgets (JSON):\n${budgetsJson}\n\nUser question: "${question}"\n\nAnswer in 3-6 lines, referring to specific amounts and categories if helpful.`;
 
     try {
       if (this.provider === 'openai') {
@@ -124,7 +124,96 @@ class AIClient {
       }
     } catch (error) {
       console.error('AI question answering error:', error);
-      return 'Unable to answer your question at this time.';
+      // Fallback: analyze data locally
+      return this.fallbackAnswerQuestion(question, transactionsJson, budgetsJson);
+    }
+  }
+
+  fallbackAnswerQuestion(question, transactionsJson, budgetsJson = '[]') {
+    try {
+      const transactions = JSON.parse(transactionsJson);
+      const budgets = JSON.parse(budgetsJson);
+      
+      if (transactions.length === 0) {
+        return "You don't have any expenses recorded yet. Start adding expenses to get insights!";
+      }
+
+      const lowerQuestion = question.toLowerCase();
+      
+      // Budget-related questions
+      if (lowerQuestion.includes('budget') || lowerQuestion.includes('remaining') || lowerQuestion.includes('left') || lowerQuestion.includes('over') || lowerQuestion.includes('still spend') || lowerQuestion.includes('can spend') || lowerQuestion.includes('can i spend')) {
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+        
+        // Filter current month expenses
+        const currentMonthExpenses = transactions.filter(t => {
+          const expDate = new Date(t.date);
+          return expDate.getMonth() + 1 === currentMonth && expDate.getFullYear() === currentYear;
+        });
+        
+        // Filter current month budget
+        const currentMonthBudget = budgets.find(b => b.month === currentMonth && b.year === currentYear);
+        
+        const totalSpent = currentMonthExpenses.reduce((sum, t) => sum + t.amount, 0);
+        const totalBudget = currentMonthBudget ? currentMonthBudget.totalLimit : 0;
+        const remaining = totalBudget - totalSpent;
+        const percentUsed = totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(1) : 0;
+        
+        if (totalBudget === 0) {
+          return `You haven't set a budget for this month yet. You've spent ₹${totalSpent.toFixed(2)} so far. Consider setting a budget to track your spending better!`;
+        }
+        
+        if (remaining < 0) {
+          return `You've exceeded your budget! You've spent ₹${totalSpent.toFixed(2)} out of ₹${totalBudget.toFixed(2)} budget (${percentUsed}% used). You're over budget by ₹${Math.abs(remaining).toFixed(2)}.`;
+        } else if (percentUsed > 80) {
+          return `Warning: You've used ${percentUsed}% of your budget! Spent ₹${totalSpent.toFixed(2)} out of ₹${totalBudget.toFixed(2)}. You have ₹${remaining.toFixed(2)} remaining for this month.`;
+        } else {
+          return `You're on track! You've spent ₹${totalSpent.toFixed(2)} out of ₹${totalBudget.toFixed(2)} budget (${percentUsed}% used). You have ₹${remaining.toFixed(2)} remaining for this month.`;
+        }
+      }
+      
+      // Category spending questions
+      const categoryMatch = lowerQuestion.match(/food|transport|shopping|entertainment|utilities|health|other/i);
+      if (categoryMatch) {
+        const category = categoryMatch[0].charAt(0).toUpperCase() + categoryMatch[0].slice(1).toLowerCase();
+        const categoryExpenses = transactions.filter(t => t.category.toLowerCase() === category.toLowerCase());
+        const total = categoryExpenses.reduce((sum, t) => sum + t.amount, 0);
+        
+        if (categoryExpenses.length === 0) {
+          return `You haven't recorded any ${category} expenses yet.`;
+        }
+        
+        return `You spent ₹${total.toFixed(2)} on ${category} across ${categoryExpenses.length} transaction${categoryExpenses.length > 1 ? 's' : ''}. Your most recent ${category} expense was ₹${categoryExpenses[0].amount} for "${categoryExpenses[0].description}".`;
+      }
+      
+      // Total spending questions
+      if (lowerQuestion.includes('total') || lowerQuestion.includes('how much') || lowerQuestion.includes('spent')) {
+        const total = transactions.reduce((sum, t) => sum + t.amount, 0);
+        const categories = {};
+        transactions.forEach(t => {
+          categories[t.category] = (categories[t.category] || 0) + t.amount;
+        });
+        const topCategory = Object.entries(categories).sort((a, b) => b[1] - a[1])[0];
+        
+        return `You've spent a total of ₹${total.toFixed(2)} across ${transactions.length} transaction${transactions.length > 1 ? 's' : ''}. Your highest spending category is ${topCategory[0]} with ₹${topCategory[1].toFixed(2)}.`;
+      }
+      
+      // Recent spending
+      if (lowerQuestion.includes('recent') || lowerQuestion.includes('last')) {
+        const recent = transactions.slice(0, 5);
+        const recentTotal = recent.reduce((sum, t) => sum + t.amount, 0);
+        return `Your 5 most recent expenses total ₹${recentTotal.toFixed(2)}. The latest was ₹${recent[0].amount} for "${recent[0].description}" in ${recent[0].category}.`;
+      }
+      
+      // Default response with summary
+      const total = transactions.reduce((sum, t) => sum + t.amount, 0);
+      const avgExpense = total / transactions.length;
+      return `Based on your ${transactions.length} transactions, you've spent ₹${total.toFixed(2)} in total, with an average expense of ₹${avgExpense.toFixed(2)}. Try asking about specific categories like "How much did I spend on food?" or "What's my remaining budget?".`;
+      
+    } catch (error) {
+      console.error('Fallback answer error:', error);
+      return 'Unable to answer your question at this time. Please try rephrasing your question.';
     }
   }
 
