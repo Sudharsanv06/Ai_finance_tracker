@@ -30,8 +30,33 @@ class AIClient {
       }
     } catch (error) {
       console.error('AI categorization error:', error);
-      return 'Others'; // Fallback category
+      // Fallback to keyword-based categorization
+      return this.fallbackCategorizeExpense(description);
     }
+  }
+
+  fallbackCategorizeExpense(description) {
+    const lowerDesc = description.toLowerCase();
+
+    const keywords = {
+      Food: ['food', 'restaurant', 'lunch', 'dinner', 'breakfast', 'cafe', 'coffee', 'pizza', 'burger', 'meal', 'grocery', 'snack', 'dominos', 'mcdonalds', 'kfc', 'subway', 'starbucks', 'swiggy', 'zomato', 'delivery', 'kitchen', 'bakery'],
+      Transport: ['uber', 'ola', 'taxi', 'bus', 'train', 'metro', 'fuel', 'gas', 'petrol', 'diesel', 'parking', 'toll', 'flight', 'ticket', 'cab', 'auto', 'rickshaw', 'bike', 'car'],
+      Shopping: ['amazon', 'flipkart', 'shop', 'clothing', 'clothes', 'shoes', 'mall', 'store', 'purchase', 'buy', 'online', 'myntra', 'ajio'],
+      Bills: ['bill', 'electricity', 'water', 'internet', 'phone', 'mobile', 'rent', 'utility', 'subscription', 'recharge', 'broadband', 'wifi'],
+      Entertainment: ['movie', 'cinema', 'game', 'concert', 'netflix', 'spotify', 'amazon prime', 'hotstar', 'music', 'show', 'theatre', 'youtube'],
+      Health: ['medicine', 'doctor', 'hospital', 'pharmacy', 'medical', 'health', 'clinic', 'therapy', 'dental', 'apollo', 'gym', 'fitness'],
+      Education: ['book', 'course', 'tuition', 'school', 'college', 'class', 'education', 'learning', 'udemy', 'coursera', 'training'],
+    };
+
+    for (const [category, words] of Object.entries(keywords)) {
+      if (words.some((word) => lowerDesc.includes(word))) {
+        console.log(`Fallback categorization: "${description}" → ${category}`);
+        return category;
+      }
+    }
+
+    console.log(`Fallback categorization: "${description}" → Others (no match)`);
+    return 'Others';
   }
 
   async generateInsight(summaryData) {
