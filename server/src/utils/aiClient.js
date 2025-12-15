@@ -2,11 +2,23 @@ import axios from 'axios';
 
 class AIClient {
   constructor() {
-    this.apiKey = process.env.OPENAI_API_KEY || process.env.HF_API_KEY;
-    this.provider = process.env.AI_PROVIDER || 'openai'; // 'openai' or 'huggingface'
+    // Don't initialize in constructor - let it be lazy loaded
+    this._initialized = false;
+  }
+
+  _ensureInitialized() {
+    if (!this._initialized) {
+      this.apiKey = process.env.OPENAI_API_KEY || process.env.HF_API_KEY;
+      this.provider = process.env.AI_PROVIDER || 'openai';
+      console.log("OpenAI key loaded:", !!process.env.OPENAI_API_KEY);
+      console.log("Key length:", process.env.OPENAI_API_KEY?.length);
+      console.log("Key starts with:", process.env.OPENAI_API_KEY?.substring(0, 10));
+      this._initialized = true;
+    }
   }
 
   async categorizeExpense(description, amount) {
+    this._ensureInitialized();
     const systemMessage = "You are a financial assistant. Categorize user expenses into one of these categories: Food, Transport, Shopping, Bills, Entertainment, Health, Education, Others.";
     const userMessage = `Description: "${description}"\nAmount: ${amount}\nReturn only one word: the best category.`;
 
@@ -23,6 +35,7 @@ class AIClient {
   }
 
   async generateInsight(summaryData) {
+    this._ensureInitialized();
     const systemMessage = "You analyze personal finance data and explain it clearly and briefly. Use friendly language with numbers and percentages.";
     const userMessage = `Here is the user's monthly expense summary as JSON:\n${JSON.stringify(summaryData)}\n\nGenerate a short paragraph (4-6 lines) explaining:\n1. where they spent the most,\n2. where they overspent compared to last month,\n3. one simple saving suggestion.`;
 
@@ -74,6 +87,7 @@ class AIClient {
   }
 
   async answerQuestion(question, transactionsJson) {
+    this._ensureInitialized();
     const systemMessage = "You are an AI that answers questions about a user's spending patterns from their transaction history. Use only the given data.";
     const userMessage = `Transactions (JSON):\n${transactionsJson}\n\nUser question: "${question}"\n\nAnswer in 3-6 lines, referring to specific amounts and categories if helpful.`;
 
