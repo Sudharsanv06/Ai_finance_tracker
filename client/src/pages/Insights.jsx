@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getInsights, generateInsight } from '../services/aiService';
+import { getInsights, generateInsight, askQuestion } from '../services/aiService';
 
 function Insights() {
   const [insights, setInsights] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [asking, setAsking] = useState(false);
+  const [qaHistory, setQaHistory] = useState([]);
 
   useEffect(() => {
     fetchInsights();
@@ -35,10 +38,30 @@ function Insights() {
     }
   };
 
+  const handleAskQuestion = async (e) => {
+    e.preventDefault();
+    if (!question.trim()) return;
+
+    setAsking(true);
+    try {
+      const response = await askQuestion(question);
+      setQaHistory([
+        { question: response.question, answer: response.answer, timestamp: new Date() },
+        ...qaHistory
+      ]);
+      setQuestion('');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to get answer');
+    } finally {
+      setAsking(false);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>AI Insights</h1>
 
+      {/* Generate Insights Section */}
       <div style={styles.header}>
         <p style={styles.description}>
           Get AI-powered insights about your spending patterns and financial health.
@@ -52,6 +75,51 @@ function Insights() {
         </button>
       </div>
 
+      {/* Ask a Question Section */}
+      <div style={styles.askSection}>
+        <h2 style={styles.sectionTitle}>💬 Ask About Your Spending</h2>
+        <form onSubmit={handleAskQuestion} style={styles.askForm}>
+          <input
+            type="text"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="e.g., How much did I spend on food this month?"
+            style={styles.questionInput}
+            disabled={asking}
+          />
+          <button 
+            type="submit" 
+            disabled={asking || !question.trim()}
+            style={styles.askBtn}
+          >
+            {asking ? 'Asking...' : 'Ask'}
+          </button>
+        </form>
+
+        {/* Q&A History */}
+        {qaHistory.length > 0 && (
+          <div style={styles.qaHistory}>
+            {qaHistory.map((qa, index) => (
+              <div key={index} style={styles.qaCard}>
+                <div style={styles.questionBox}>
+                  <strong style={styles.qaLabel}>Q:</strong>
+                  <span style={styles.qaQuestion}>{qa.question}</span>
+                </div>
+                <div style={styles.answerBox}>
+                  <strong style={styles.qaLabel}>A:</strong>
+                  <span style={styles.qaAnswer}>{qa.answer}</span>
+                </div>
+                <div style={styles.qaTime}>
+                  {qa.timestamp.toLocaleTimeString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Monthly Insights */}
+      <h2 style={styles.sectionTitle}>📊 Monthly AI Summaries</h2>
       {loading ? (
         <div style={styles.loading}>Loading insights...</div>
       ) : insights.length === 0 ? (
@@ -92,6 +160,12 @@ const styles = {
     marginBottom: '1rem',
     fontSize: '2.5rem',
   },
+  sectionTitle: {
+    color: 'white',
+    marginTop: '2rem',
+    marginBottom: '1rem',
+    fontSize: '1.75rem',
+  },
   header: {
     background: 'white',
     padding: '1.5rem',
@@ -116,6 +190,70 @@ const styles = {
     fontSize: '1rem',
     cursor: 'pointer',
     fontWeight: '500',
+  },
+  askSection: {
+    background: 'white',
+    padding: '1.5rem',
+    borderRadius: '10px',
+    marginBottom: '2rem',
+  },
+  askForm: {
+    display: 'flex',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+  },
+  questionInput: {
+    flex: 1,
+    padding: '0.75rem',
+    border: '2px solid #e9ecef',
+    borderRadius: '5px',
+    fontSize: '1rem',
+    outline: 'none',
+  },
+  askBtn: {
+    background: '#10b981',
+    color: 'white',
+    border: 'none',
+    padding: '0.75rem 2rem',
+    borderRadius: '5px',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+  },
+  qaHistory: {
+    display: 'grid',
+    gap: '1rem',
+  },
+  qaCard: {
+    background: '#f8f9fa',
+    padding: '1rem',
+    borderRadius: '8px',
+    borderLeft: '4px solid #10b981',
+  },
+  questionBox: {
+    marginBottom: '0.75rem',
+  },
+  answerBox: {
+    marginBottom: '0.5rem',
+  },
+  qaLabel: {
+    color: '#667eea',
+    marginRight: '0.5rem',
+    fontSize: '1rem',
+  },
+  qaQuestion: {
+    color: '#333',
+    fontSize: '1rem',
+  },
+  qaAnswer: {
+    color: '#555',
+    fontSize: '1rem',
+    lineHeight: '1.5',
+  },
+  qaTime: {
+    color: '#999',
+    fontSize: '0.75rem',
+    textAlign: 'right',
   },
   loading: {
     textAlign: 'center',
